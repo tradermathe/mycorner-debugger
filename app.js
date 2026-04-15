@@ -294,32 +294,48 @@ function initCharts() {
     }
   });
 
-  // Punch confidence chart
+  // Punch confidence chart — show lead + rear punch probability
   if (D.punch) {
-    const pConf = D.punch.per_frame_punch_conf || [];
-    const pClass = D.punch.per_frame_punch_class || [];
-    const data = [], colors = [];
+    const leadProbs = D.punch.per_frame_lead_probs || [];
+    const rearProbs = D.punch.per_frame_rear_probs || [];
+    const leadData = [], rearData = [];
     for (let i = 0; i < totalFrames; i += step) {
-      data.push(pConf[i] || 0);
-      colors.push(PUNCH_COLORS[pClass[i]] || '#333');
+      // Punch prob = class 1 + class 2 (everything except idle)
+      const lp = leadProbs[i] ? (leadProbs[i][1] || 0) + (leadProbs[i][2] || 0) : 0;
+      const rp = rearProbs[i] ? (rearProbs[i][1] || 0) + (rearProbs[i][2] || 0) : 0;
+      leadData.push(lp);
+      rearData.push(rp);
     }
 
     charts.punch = new Chart(document.getElementById('punch-chart'), {
-      type: 'bar',
-      data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0, barPercentage: 1, categoryPercentage: 1 }] },
+      type: 'line',
+      data: { labels, datasets: [
+        { label: 'Lead (jab/power)', data: leadData, borderColor: '#4FC3F7', borderWidth: 1.5, pointRadius: 0, tension: 0, fill: { target: 'origin', above: 'rgba(79,195,247,0.1)' } },
+        { label: 'Rear (cross/power)', data: rearData, borderColor: '#FF7043', borderWidth: 1.5, pointRadius: 0, tension: 0, fill: { target: 'origin', above: 'rgba(255,112,67,0.1)' } },
+      ]},
       options: {
         responsive: true, maintainAspectRatio: false, animation: false,
         plugins: {
-          legend: { display: false },
+          legend: { display: true, labels: { color: '#888', boxWidth: 12, font: { size: 10 } } },
           tooltip: { callbacks: {
             title: (items) => 'Frame ' + labels[items[0].dataIndex],
-            label: (item) => { const fi = labels[item.dataIndex]; return (pClass[fi] || 'none') + ': ' + (pConf[fi] || 0).toFixed(3); }
+            label: (item) => {
+              const fi = labels[item.dataIndex];
+              const lp = leadProbs[fi], rp = rearProbs[fi];
+              if (item.datasetIndex === 0) {
+                const cls1 = (lp && lp[1] || 0).toFixed(2), cls2 = (lp && lp[2] || 0).toFixed(2);
+                return `Lead: straight=${cls1} power=${cls2}`;
+              } else {
+                const cls1 = (rp && rp[1] || 0).toFixed(2), cls2 = (rp && rp[2] || 0).toFixed(2);
+                return `Rear: straight=${cls1} power=${cls2}`;
+              }
+            }
           }}
         },
         scales: {
           x: { display: false },
           y: { min: 0, max: 1, grid: { color: '#222' }, ticks: { color: '#666', font: { size: 10 } },
-               title: { display: true, text: 'Punch Conf', color: '#666', font: { size: 10 } } }
+               title: { display: true, text: 'Punch Prob', color: '#666', font: { size: 10 } } }
         },
         onClick: (evt) => {
           const pts = charts.punch.getElementsAtEventForMode(evt, 'index', { intersect: false }, false);
@@ -405,13 +421,15 @@ function drawPunchStrip() {
 
   if (!D?.punch_detections) return;
   const w = c.width, fps = D.fps, total = D.total_frames;
+  const CAT_COLORS = { jab: '#4FC3F7', cross: '#FF7043', power: '#66BB6A' };
   for (const det of D.punch_detections) {
     const x1 = Math.floor(det.start_time * fps / total * w);
     const x2 = Math.ceil(det.end_time * fps / total * w);
-    ctx2.fillStyle = PUNCH_COLORS[det.punch_type] || '#888';
+    ctx2.fillStyle = CAT_COLORS[det.category] || '#888';
     ctx2.fillRect(x1, 0, Math.max(3, x2 - x1), 24);
     ctx2.fillStyle = '#fff'; ctx2.font = '9px sans-serif';
-    ctx2.fillText(det.punch_type.split('_')[0], x1 + 2, 15);
+    const label = (det.hand === 'lead' ? 'L' : 'R') + ' ' + (det.category || det.punch_type);
+    ctx2.fillText(label, x1 + 2, 15);
   }
 
   c.onclick = (e) => {
@@ -453,11 +471,14 @@ function initThresholds() {
     const t = parseFloat(pSlider.value);
     pVal.textContent = t.toFixed(2);
     if (!D.punch) return;
-    const pc = D.punch.per_frame_punch_conf || [];
-    let count = 0;
-    // Simple count: frames above threshold
-    for (let i = 0; i < pc.length; i++) { if (pc[i] >= t) count++; }
-    pCount.textContent = count + ' frames';
+    const lp = D.punch.per_frame_lead_probs || [];
+    const rp = D.punch.per_frame_rear_probs || [];
+    let leadCount = 0, rearCount = 0;
+    for (let i = 0; i < lp.length; i++) {
+      if (lp[i] && (lp[i][1] + lp[i][2]) >= t) leadCount++;
+      if (rp[i] && (rp[i][1] + rp[i][2]) >= t) rearCount++;
+    }
+    pCount.textContent = `${leadCount} lead + ${rearCount} rear frames`;
     if (charts.punch) charts.punch.update('none');
   }
   pSlider.oninput = updatePunchThresh;
@@ -508,9 +529,16 @@ function updateInspector(fi) {
   // Punch info for this frame
   let punchInfo = '';
   if (D.punch) {
-    const pc = (D.punch.per_frame_punch_conf || [])[fi];
-    const pcls = (D.punch.per_frame_punch_class || [])[fi];
-    if (pc > 0) punchInfo = `<b>Punch:</b> ${pcls} (${pc.toFixed(3)}) &nbsp;`;
+    const lp = (D.punch.per_frame_lead_probs || [])[fi];
+    const rp = (D.punch.per_frame_rear_probs || [])[fi];
+    if (lp) {
+      const lpunch = (lp[1] + lp[2]).toFixed(2);
+      punchInfo += `<b>Lead:</b> ${lpunch} (str=${lp[1].toFixed(2)} pwr=${lp[2].toFixed(2)}) &nbsp;`;
+    }
+    if (rp) {
+      const rpunch = (rp[1] + rp[2]).toFixed(2);
+      punchInfo += `<b>Rear:</b> ${rpunch} (str=${rp[1].toFixed(2)} pwr=${rp[2].toFixed(2)}) &nbsp;`;
+    }
   }
 
   let rows = '';
