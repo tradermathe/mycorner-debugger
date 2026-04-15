@@ -190,12 +190,25 @@ function updateDisplay() {
   Object.values(charts).forEach(c => { try { c.update('none'); } catch(e) {} });
 }
 
-player.addEventListener('timeupdate', () => {
-  if (!D) return;
-  currentFrame = Math.round(player.currentTime * D.fps);
-  if (currentFrame >= D.total_frames) currentFrame = D.total_frames - 1;
-  updateDisplay();
-});
+// Use requestVideoFrameCallback for frame-accurate skeleton sync during playback
+if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
+  function onVideoFrame(now, metadata) {
+    if (!D) { player.requestVideoFrameCallback(onVideoFrame); return; }
+    currentFrame = Math.round(metadata.mediaTime * D.fps);
+    if (currentFrame >= D.total_frames) currentFrame = D.total_frames - 1;
+    updateDisplay();
+    player.requestVideoFrameCallback(onVideoFrame);
+  }
+  player.requestVideoFrameCallback(onVideoFrame);
+} else {
+  // Fallback for older browsers
+  player.addEventListener('timeupdate', () => {
+    if (!D) return;
+    currentFrame = Math.round(player.currentTime * D.fps);
+    if (currentFrame >= D.total_frames) currentFrame = D.total_frames - 1;
+    updateDisplay();
+  });
+}
 
 document.getElementById('btn-play').addEventListener('click', () => {
   if (player.paused) { player.play(); document.getElementById('btn-play').textContent = 'Pause'; }
