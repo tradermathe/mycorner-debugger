@@ -1,0 +1,84 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a0a; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display: flex; height: 100vh; overflow: hidden; }
+
+/* Sidebar */
+#sidebar { width: 280px; background: #111; border-right: 1px solid #222; display: flex; flex-direction: column; overflow: hidden; }
+#sidebar-header { padding: 16px; border-bottom: 1px solid #222; }
+#sidebar-header h1 { font-size: 18px; color: #ef4444; display: inline; }
+#sidebar-header .subtitle { font-size: 14px; color: #666; margin-left: 8px; }
+#session-list { flex: 1; overflow-y: auto; padding: 8px; }
+
+.session-item { padding: 10px 12px; border-radius: 8px; cursor: pointer; margin-bottom: 4px; }
+.session-item:hover { background: #1a1a1a; }
+.session-item.active { background: #1a1a2e; border: 1px solid #333; }
+.session-date { font-size: 13px; color: #aaa; }
+.session-meta { font-size: 11px; color: #666; margin-top: 2px; }
+.session-rounds { padding-left: 12px; margin-top: 4px; }
+.round-item { padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; color: #888; display: flex; justify-content: space-between; }
+.round-item:hover { background: #1e1e2e; color: #ccc; }
+.round-item.active { background: #2a1a2a; color: #ef4444; }
+.round-status { font-size: 10px; }
+.round-status.ready { color: #4ade80; }
+.round-status.processing { color: #facc15; }
+.round-status.uploaded { color: #60a5fa; }
+
+.loading { padding: 20px; text-align: center; color: #666; font-size: 13px; }
+
+/* Main */
+#main { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
+
+#empty-state { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #444; }
+#empty-state h2 { font-size: 24px; margin-bottom: 8px; }
+#empty-state p { font-size: 14px; }
+
+/* Viewer */
+#viewer { flex: 1; display: flex; flex-direction: column; }
+#viewer-header { padding: 10px 16px; background: #111; border-bottom: 1px solid #222; display: flex; justify-content: space-between; align-items: center; }
+#viewer-title { font-size: 14px; font-weight: bold; }
+#viewer-status { font-size: 12px; color: #666; }
+
+/* Video */
+#video-section { background: #000; }
+#video-container { position: relative; width: 100%; max-height: 50vh; display: flex; justify-content: center; }
+#player { max-width: 100%; max-height: 50vh; object-fit: contain; }
+#skeleton-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+
+#controls { padding: 8px 16px; background: #111; display: flex; gap: 8px; align-items: center; }
+#controls button { background: #ef4444; color: #fff; border: none; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px; }
+#controls button:hover { opacity: 0.8; }
+.frame-info { font-size: 11px; color: #888; margin-left: auto; }
+
+/* Toggles */
+#toggles { padding: 8px 16px; background: #0f0f0f; border-bottom: 1px solid #222; display: flex; flex-wrap: wrap; gap: 12px; }
+#toggles label { font-size: 12px; color: #888; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+#toggles input[type=checkbox] { accent-color: #ef4444; }
+
+/* Charts */
+#charts { padding: 8px 16px; }
+.chart-wrap { height: 160px; margin-bottom: 8px; position: relative; }
+.chart-wrap canvas { width: 100% !important; height: 100% !important; }
+.strip-wrap { height: 24px; margin-bottom: 8px; }
+.strip-wrap canvas { width: 100%; height: 24px; border-radius: 4px; cursor: pointer; }
+
+/* Thresholds */
+#thresholds { padding: 8px 16px; background: #111; border-top: 1px solid #222; }
+.threshold-row { display: flex; align-items: center; gap: 10px; font-size: 12px; margin-bottom: 4px; }
+.threshold-row label { color: #888; min-width: 110px; }
+.threshold-row input[type=range] { flex: 1; accent-color: #ef4444; }
+.threshold-row span { color: #aaa; min-width: 35px; }
+.live-count { color: #ef4444; font-weight: bold; }
+
+/* Inspector */
+#inspector { padding: 12px 16px; background: #111; border-top: 1px solid #222; }
+#inspector h3 { font-size: 13px; color: #ef4444; margin-bottom: 8px; }
+#inspector table { width: 100%; font-size: 11px; border-collapse: collapse; }
+#inspector td, #inspector th { padding: 2px 6px; text-align: right; }
+#inspector th { text-align: left; color: #888; }
+.conf-high { color: #4ade80; }
+.conf-mid { color: #facc15; }
+.conf-low { color: #ef4444; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #111; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }

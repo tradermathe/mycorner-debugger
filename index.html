@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyCorner Debugger</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="sidebar">
+  <div id="sidebar-header">
+    <h1>MyCorner</h1>
+    <span class="subtitle">Debugger</span>
+  </div>
+  <div id="session-list">
+    <div class="loading">Connecting to Firebase...</div>
+  </div>
+</div>
+
+<div id="main">
+  <!-- Empty state -->
+  <div id="empty-state">
+    <h2>Select a round</h2>
+    <p>Pick a session and round from the sidebar to start debugging.</p>
+  </div>
+
+  <!-- Viewer (hidden until a round is selected) -->
+  <div id="viewer" style="display:none;">
+    <!-- Top bar -->
+    <div id="viewer-header">
+      <span id="viewer-title"></span>
+      <span id="viewer-status"></span>
+    </div>
+
+    <!-- Video + overlay -->
+    <div id="video-section">
+      <div id="video-container">
+        <video id="player" preload="auto" muted playsinline crossorigin="anonymous"></video>
+        <canvas id="skeleton-canvas"></canvas>
+      </div>
+      <div id="controls">
+        <button id="btn-play">Play</button>
+        <button id="btn-prev">&larr;</button>
+        <button id="btn-next">&rarr;</button>
+        <span class="frame-info">
+          Frame <span id="frame-num">0</span> / <span id="frame-total">0</span>
+          &nbsp;|&nbsp; <span id="frame-time">0.00s</span>
+        </span>
+      </div>
+    </div>
+
+    <!-- Toggle panel -->
+    <div id="toggles">
+      <label><input type="checkbox" id="tog-skeleton" checked> Skeleton</label>
+      <label><input type="checkbox" id="tog-punch-chart" checked> Punch Confidence</label>
+      <label><input type="checkbox" id="tog-punch-strip" checked> Punch Detections</label>
+      <label><input type="checkbox" id="tog-ratio"> Stance Width</label>
+      <label><input type="checkbox" id="tog-conf"> YOLO Confidence</label>
+      <label><input type="checkbox" id="tog-filter"> Filter Pipeline</label>
+      <label><input type="checkbox" id="tog-inspector"> Frame Inspector</label>
+    </div>
+
+    <!-- Charts area -->
+    <div id="charts">
+      <div id="punch-strip-wrap" class="strip-wrap"><canvas id="punch-strip"></canvas></div>
+      <div id="punch-chart-wrap" class="chart-wrap"><canvas id="punch-chart"></canvas></div>
+      <div id="filter-strip-wrap" class="strip-wrap" style="display:none;"><canvas id="filter-strip"></canvas></div>
+      <div id="ratio-chart-wrap" class="chart-wrap" style="display:none;"><canvas id="ratio-chart"></canvas></div>
+      <div id="conf-chart-wrap" class="chart-wrap" style="display:none;"><canvas id="conf-chart"></canvas></div>
+    </div>
+
+    <!-- Threshold sliders -->
+    <div id="thresholds">
+      <div class="threshold-row">
+        <label>Punch threshold:</label>
+        <input type="range" id="punch-thresh" min="0.1" max="0.9" step="0.05" value="0.3">
+        <span id="punch-thresh-val">0.30</span>
+        <span>Punches: <span id="punch-thresh-count" class="live-count">0</span></span>
+      </div>
+      <div class="threshold-row" id="stance-thresh-row" style="display:none;">
+        <label>Stance threshold:</label>
+        <input type="range" id="stance-thresh" min="0.1" max="1.0" step="0.01" value="0.50">
+        <span id="stance-thresh-val">0.50</span>
+        <span>Violations: <span id="stance-thresh-count" class="live-count">0</span></span>
+      </div>
+    </div>
+
+    <!-- Frame inspector -->
+    <div id="inspector" style="display:none;">
+      <h3>Frame Inspector</h3>
+      <div id="inspector-content">Click a frame or use arrow keys</div>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
