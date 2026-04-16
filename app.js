@@ -260,7 +260,8 @@ function drawSkeleton(fi) {
 
   // Draw stance width measurement lines (ankle width + torso height normalization)
   const swRule = D.rules?.stance_width;
-  if (swRule) {
+  const swToggle = document.getElementById('tog-ratio');
+  if (swRule && swToggle && swToggle.checked) {
     const swDet = swRule.details || {};
     const swRatio = (swDet.per_frame_sep_ratio || [])[fi];
 
