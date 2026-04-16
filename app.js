@@ -191,6 +191,12 @@ function updateDisplay() {
   else ctx.clearRect(0, 0, canvas.width, canvas.height);
   if (document.getElementById('tog-inspector').checked) updateInspector(currentFrame);
   Object.values(charts).forEach(c => { try { c.update('none'); } catch(e) {} });
+  // Redraw strips to update cursor position
+  if (D) {
+    drawPunchStrip();
+    const fs = D.rules?.stance_width?.details?.filter_stage || [];
+    if (fs.length) drawFilterStrip(fs, D.total_frames);
+  }
 }
 
 // Use requestVideoFrameCallback for frame-accurate skeleton sync during playback
@@ -608,11 +614,20 @@ function drawPunchStrip() {
     ctx2.fillText(det.category || det.punch_type, x1 + 2, y + rowH - 3);
   }
 
-  c.onclick = (e) => {
-    const rect = c.getBoundingClientRect();
-    seekToFrame(Math.floor((e.clientX - rect.left) / rect.width * D.total_frames));
-    player.pause();
-  };
+  // Frame cursor
+  const curX = Math.round(currentFrame / total * w);
+  ctx2.fillStyle = '#fff';
+  ctx2.fillRect(curX, 0, 2, c.height);
+
+  // Bind click handler once
+  if (!c._bound) {
+    c._bound = true;
+    c.onclick = (e) => {
+      const rect = c.getBoundingClientRect();
+      seekToFrame(Math.floor((e.clientX - rect.left) / rect.width * D.total_frames));
+      player.pause();
+    };
+  }
 }
 
 function drawFilterStrip(filterStage, totalFrames) {
@@ -624,11 +639,19 @@ function drawFilterStrip(filterStage, totalFrames) {
     ctx2.fillStyle = STAGE_COLORS[filterStage[fi]] || '#222';
     ctx2.fillRect(x, 0, 1, 24);
   }
-  c.onclick = (e) => {
-    const rect = c.getBoundingClientRect();
-    seekToFrame(Math.floor((e.clientX - rect.left) / rect.width * totalFrames));
-    player.pause();
-  };
+  // Frame cursor
+  const curX = Math.round(currentFrame / totalFrames * c.width);
+  ctx2.fillStyle = '#fff';
+  ctx2.fillRect(curX, 0, 2, 24);
+
+  if (!c._bound) {
+    c._bound = true;
+    c.onclick = (e) => {
+      const rect = c.getBoundingClientRect();
+      seekToFrame(Math.floor((e.clientX - rect.left) / rect.width * totalFrames));
+      player.pause();
+    };
+  }
 }
 
 // === Thresholds ===
