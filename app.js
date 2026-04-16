@@ -308,6 +308,116 @@ function drawSkeleton(fi) {
 
     ctx.globalAlpha = 1;
   }
+
+  // Draw guard drop overlay during punch windows
+  const gdRule = D.rules?.guard_drop;
+  const gdToggle = document.getElementById('tog-guard-drop');
+  if (gdRule && gdToggle && gdToggle.checked) {
+    const perPunch = gdRule.details?.per_punch || [];
+    const fps = D.fps;
+
+    // Find active punch at this frame
+    let activePunch = null;
+    for (const pp of perPunch) {
+      if (pp.skipped) continue;
+      const sf = Math.round(pp.start_time * fps);
+      const ef = Math.round(pp.end_time * fps);
+      if (fi >= sf && fi <= ef) { activePunch = pp; break; }
+    }
+
+    if (activePunch) {
+      // Determine guard wrist + shoulder from punching hand
+      // lead punch → guard = rear hand (R_WRIST=6, R_SHOULDER=2)
+      // rear punch → guard = lead hand (L_WRIST=5, L_SHOULDER=1)
+      const guardWrist = activePunch.hand === 'lead' ? 6 : 5;
+      const guardShoulder = activePunch.hand === 'lead' ? 2 : 1;
+      const dropColor = activePunch.is_drop ? '#ef4444' : '#4ade80';
+
+      const gwx = flat[guardWrist*2] * vr.scaleX + vr.offsetX;
+      const gwy = flat[guardWrist*2+1] * vr.scaleY + vr.offsetY;
+      const gsx = flat[guardShoulder*2] * vr.scaleX + vr.offsetX;
+      const gsy = flat[guardShoulder*2+1] * vr.scaleY + vr.offsetY;
+      const hasWrist = !(flat[guardWrist*2] === 0 && flat[guardWrist*2+1] === 0);
+      const hasShoulder = !(flat[guardShoulder*2] === 0 && flat[guardShoulder*2+1] === 0);
+
+      if (hasWrist) {
+        ctx.globalAlpha = 0.9;
+
+        // Circle around guard wrist
+        ctx.beginPath();
+        ctx.arc(gwx, gwy, 12, 0, Math.PI * 2);
+        ctx.strokeStyle = dropColor;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Dashed line from guard wrist to same-side shoulder
+        if (hasShoulder) {
+          ctx.strokeStyle = dropColor;
+          ctx.lineWidth = 2;
+          ctx.setLineDash([5, 5]);
+          ctx.globalAlpha = 0.5;
+          ctx.beginPath();
+          ctx.moveTo(gwx, gwy);
+          ctx.lineTo(gsx, gsy);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.globalAlpha = 0.9;
+        }
+
+        // Reference line: where guard wrist was at punch start (shoulder-anchored)
+        const startFrame = Math.round(activePunch.start_time * fps);
+        if (startFrame < D.skeleton_frames.length && hasShoulder) {
+          const startFlat = D.skeleton_frames[startFrame];
+          const startWristY = startFlat[guardWrist*2+1];
+          const startShoulderY = startFlat[guardShoulder*2+1];
+          const startOffset = startWristY - startShoulderY;
+          // Current shoulder Y + start offset = expected guard position
+          const curShoulderY = flat[guardShoulder*2+1] * vr.scaleY + vr.offsetY;
+          const refY = curShoulderY + startOffset * vr.scaleY;
+
+          // Horizontal dashed reference line
+          ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([6, 4]);
+          ctx.beginPath();
+          ctx.moveTo(vr.offsetX, refY);
+          ctx.lineTo(vr.offsetX + vr.renderW, refY);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Label
+          ctx.font = '11px sans-serif';
+          ctx.fillStyle = '#aaa';
+          ctx.fillText('expected guard', vr.offsetX + 8, refY - 6);
+
+          // Shade gap if hand dropped below expected
+          if (gwy > refY + 3) {
+            ctx.fillStyle = activePunch.is_drop ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.05)';
+            ctx.fillRect(gwx - 25, refY, 50, gwy - refY);
+          }
+        }
+
+        // Delta + badge label near wrist
+        const delta = activePunch.shoulder_delta;
+        const badge = activePunch.is_drop ? 'DROP' : 'OK';
+        const labelY = gwy - 18;
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillStyle = '#000';
+        ctx.fillText(badge, gwx + 16 + 1, labelY + 1);
+        ctx.fillStyle = dropColor;
+        ctx.fillText(badge, gwx + 16, labelY);
+        if (delta != null) {
+          ctx.font = '11px monospace';
+          ctx.fillStyle = '#000';
+          ctx.fillText('Δ' + delta.toFixed(3), gwx + 16 + 1, labelY + 14 + 1);
+          ctx.fillStyle = dropColor;
+          ctx.fillText('Δ' + delta.toFixed(3), gwx + 16, labelY + 14);
+        }
+
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
 }
 
 function initOverlays() {
@@ -592,6 +702,27 @@ function updateInspector(fi) {
     }
   }
 
+  // Guard drop info for this frame
+  let guardInfo = '';
+  const gdPerPunch = D.rules?.guard_drop?.details?.per_punch || [];
+  const gdFps = D.fps;
+  for (const pp of gdPerPunch) {
+    if (pp.skipped) continue;
+    const sf = Math.round(pp.start_time * gdFps);
+    const ef = Math.round(pp.end_time * gdFps);
+    if (fi >= sf && fi <= ef) {
+      const color = pp.is_drop ? '#ef4444' : '#4ade80';
+      const badge = pp.is_drop ? 'DROP' : 'OK';
+      guardInfo = `<div style="margin:4px 0; padding:4px 8px; border-radius:4px; border-left:3px solid ${color}; background:rgba(255,255,255,0.05); font-size:12px;">
+        <b>Guard ${badge}</b> &nbsp; ${pp.punch_type} (${pp.hand} punch)
+        ${pp.shoulder_delta != null ? `&nbsp; Δ=${pp.shoulder_delta.toFixed(3)}` : ''}
+        ${pp.end_nose_pos != null ? `&nbsp; nose=${pp.end_nose_pos.toFixed(3)}` : ''}
+        ${pp.avg_wrist_conf != null ? `&nbsp; conf=${pp.avg_wrist_conf.toFixed(2)}` : ''}
+      </div>`;
+      break;
+    }
+  }
+
   let rows = '';
   for (let j = 0; j < 13; j++) {
     const c = conf[j];
@@ -607,6 +738,7 @@ function updateInspector(fi) {
       ${punchInfo}
       <b>Sep Ratio:</b> ${srD} &nbsp; <b>Torso H:</b> ${thD} &nbsp; <b>Min Conf:</b> ${(cm||0).toFixed(3)}
     </div>
+    ${guardInfo}
     ${stage !== undefined ? `<div style="margin-bottom:6px; padding:2px 8px; border-radius:4px; font-size:11px; display:inline-block; background:${STAGE_COLORS[stage] || '#333'}">${STAGE_NAMES[stage] || 'unknown'}</div>` : ''}
     <table><tr><th>Joint</th><th>X</th><th>Y</th><th>Conf</th></tr>${rows}</table>
   `;
@@ -616,6 +748,7 @@ function updateInspector(fi) {
 function setupToggles() {
   const map = {
     'tog-skeleton': null, // handled in updateDisplay
+    'tog-guard-drop': null, // handled in updateDisplay (drawn on skeleton canvas)
     'tog-punch-chart': 'punch-chart-wrap',
     'tog-punch-strip': 'punch-strip-wrap',
     'tog-ratio': 'ratio-chart-wrap',
@@ -635,7 +768,7 @@ function setupToggles() {
         document.getElementById('stance-thresh-row').style.display =
           tog.checked && D?.rules?.stance_width ? 'flex' : 'none';
       }
-      if (togId === 'tog-skeleton') updateDisplay();
+      if (togId === 'tog-skeleton' || togId === 'tog-guard-drop') updateDisplay();
     });
   }
 }
