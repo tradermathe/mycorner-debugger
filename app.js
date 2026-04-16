@@ -577,20 +577,30 @@ function initCharts() {
 function drawPunchStrip() {
   const c = document.getElementById('punch-strip');
   const ctx2 = c.getContext('2d');
-  c.width = c.parentElement.clientWidth; c.height = 24;
-  ctx2.fillStyle = '#181818'; ctx2.fillRect(0, 0, c.width, 24);
+  const rowH = 14;
+  c.width = c.parentElement.clientWidth; c.height = rowH * 2 + 2;
+  ctx2.fillStyle = '#181818'; ctx2.fillRect(0, 0, c.width, c.height);
+
+  // Divider between rows
+  ctx2.fillStyle = '#333'; ctx2.fillRect(0, rowH, c.width, 2);
 
   if (!D?.punch_detections) return;
   const w = c.width, fps = D.fps, total = D.total_frames;
   const CAT_COLORS = { jab: '#4FC3F7', cross: '#FF7043', power: '#66BB6A' };
+
+  // Row labels
+  ctx2.fillStyle = '#666'; ctx2.font = '9px sans-serif';
+  ctx2.fillText('Lead', 2, rowH - 3);
+  ctx2.fillText('Rear', 2, rowH * 2);
+
   for (const det of D.punch_detections) {
     const x1 = Math.floor(det.start_time * fps / total * w);
     const x2 = Math.ceil(det.end_time * fps / total * w);
+    const y = det.hand === 'lead' ? 0 : rowH + 2;
     ctx2.fillStyle = CAT_COLORS[det.category] || '#888';
-    ctx2.fillRect(x1, 0, Math.max(3, x2 - x1), 24);
+    ctx2.fillRect(x1, y, Math.max(3, x2 - x1), rowH);
     ctx2.fillStyle = '#fff'; ctx2.font = '9px sans-serif';
-    const label = (det.hand === 'lead' ? 'L' : 'R') + ' ' + (det.category || det.punch_type);
-    ctx2.fillText(label, x1 + 2, 15);
+    ctx2.fillText(det.category || det.punch_type, x1 + 2, y + rowH - 3);
   }
 
   c.onclick = (e) => {
