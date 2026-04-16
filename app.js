@@ -323,9 +323,13 @@ function drawSkeleton(fi) {
   // Draw guard drop overlay during punch windows
   const gdRule = D.rules?.guard_drop;
   const gdToggle = document.getElementById('tog-guard-drop');
+  if (gdToggle && gdToggle.checked) {
+    if (!gdRule) console.warn('Guard drop toggle ON but D.rules.guard_drop is missing');
+  }
   if (gdRule && gdToggle && gdToggle.checked) {
     const perPunch = gdRule.details?.per_punch || [];
     const fps = D.fps;
+    if (fi === 0) console.log('Guard drop data:', perPunch.length, 'punches, sample:', perPunch[0]);
 
     // Find active punch at this frame
     let activePunch = null;
