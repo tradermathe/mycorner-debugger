@@ -184,7 +184,10 @@ function seekToFrame(f) {
 function updateDisplay() {
   document.getElementById('frame-num').textContent = currentFrame;
   if (D) document.getElementById('frame-time').textContent = (currentFrame / D.fps).toFixed(2) + 's';
-  if (document.getElementById('tog-skeleton').checked) drawSkeleton(currentFrame);
+  const showSkeleton = document.getElementById('tog-skeleton').checked;
+  const showGuardDrop = document.getElementById('tog-guard-drop').checked;
+  const showStanceWidth = document.getElementById('tog-ratio').checked;
+  if (showSkeleton || showGuardDrop || showStanceWidth) drawSkeleton(currentFrame);
   else ctx.clearRect(0, 0, canvas.width, canvas.height);
   if (document.getElementById('tog-inspector').checked) updateInspector(currentFrame);
   Object.values(charts).forEach(c => { try { c.update('none'); } catch(e) {} });
@@ -233,29 +236,31 @@ function drawSkeleton(fi) {
   const conf = D.confidences[fi];
   const vr = getVideoRect();
 
-  // Bones
-  ctx.lineWidth = 2;
-  for (const [a, b] of BONES) {
-    const ax = flat[a*2] * vr.scaleX + vr.offsetX, ay = flat[a*2+1] * vr.scaleY + vr.offsetY;
-    const bx = flat[b*2] * vr.scaleX + vr.offsetX, by = flat[b*2+1] * vr.scaleY + vr.offsetY;
-    if (flat[a*2] === 0 && flat[a*2+1] === 0) continue;
-    if (flat[b*2] === 0 && flat[b*2+1] === 0) continue;
-    const mc = Math.min(conf[a], conf[b]);
-    ctx.strokeStyle = mc > 0.5 ? '#4ade80' : mc > 0.3 ? '#facc15' : '#ef4444';
-    ctx.globalAlpha = 0.7;
-    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
-  }
+  // Bones + Joints (only when skeleton toggle is on)
+  const skelToggle = document.getElementById('tog-skeleton');
+  if (skelToggle && skelToggle.checked) {
+    ctx.lineWidth = 2;
+    for (const [a, b] of BONES) {
+      const ax = flat[a*2] * vr.scaleX + vr.offsetX, ay = flat[a*2+1] * vr.scaleY + vr.offsetY;
+      const bx = flat[b*2] * vr.scaleX + vr.offsetX, by = flat[b*2+1] * vr.scaleY + vr.offsetY;
+      if (flat[a*2] === 0 && flat[a*2+1] === 0) continue;
+      if (flat[b*2] === 0 && flat[b*2+1] === 0) continue;
+      const mc = Math.min(conf[a], conf[b]);
+      ctx.strokeStyle = mc > 0.5 ? '#4ade80' : mc > 0.3 ? '#facc15' : '#ef4444';
+      ctx.globalAlpha = 0.7;
+      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+    }
 
-  // Joints
-  ctx.globalAlpha = 1;
-  for (let j = 0; j < 13; j++) {
-    const x = flat[j*2] * vr.scaleX + vr.offsetX;
-    const y = flat[j*2+1] * vr.scaleY + vr.offsetY;
-    if (flat[j*2] === 0 && flat[j*2+1] === 0) continue;
-    const c = conf[j], r = c > 0.5 ? 5 : 3;
-    ctx.fillStyle = c > 0.8 ? '#4ade80' : c > 0.5 ? '#facc15' : '#ef4444';
-    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.globalAlpha = 1;
+    for (let j = 0; j < 13; j++) {
+      const x = flat[j*2] * vr.scaleX + vr.offsetX;
+      const y = flat[j*2+1] * vr.scaleY + vr.offsetY;
+      if (flat[j*2] === 0 && flat[j*2+1] === 0) continue;
+      const c = conf[j], r = c > 0.5 ? 5 : 3;
+      ctx.fillStyle = c > 0.8 ? '#4ade80' : c > 0.5 ? '#facc15' : '#ef4444';
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
+    }
   }
 
   // Draw stance width measurement lines (ankle width + torso height normalization)
