@@ -323,13 +323,9 @@ function drawSkeleton(fi) {
   // Draw guard drop overlay during punch windows
   const gdRule = D.rules?.guard_drop;
   const gdToggle = document.getElementById('tog-guard-drop');
-  if (gdToggle && gdToggle.checked) {
-    if (!gdRule) console.warn('Guard drop toggle ON but D.rules.guard_drop is missing');
-  }
   if (gdRule && gdToggle && gdToggle.checked) {
     const perPunch = gdRule.details?.per_punch || [];
     const fps = D.fps;
-    if (fi === 0) console.log('Guard drop data:', perPunch.length, 'punches, sample:', perPunch[0]);
 
     // Find active punch at this frame
     let activePunch = null;
@@ -534,6 +530,9 @@ function initCharts() {
     });
   }
 
+  // Guard drop clips
+  buildGuardDropClips();
+
   // Punch detection strip
   drawPunchStrip();
 
@@ -586,6 +585,54 @@ function initCharts() {
     // Filter strip
     drawFilterStrip(filterStage, totalFrames);
   }
+}
+
+// === Guard Drop Clips ===
+function buildGuardDropClips() {
+  const wrap = document.getElementById('guard-drop-wrap');
+  if (!wrap) return;
+  const rule = D?.rules?.guard_drop;
+  if (!rule) { wrap.innerHTML = '<div style="color:#666;font-size:12px;padding:8px;">No guard drop data for this session</div>'; return; }
+
+  const perPunch = rule.details?.per_punch || [];
+  const analyzed = perPunch.filter(p => !p.skipped);
+  const drops = analyzed.filter(p => p.is_drop);
+
+  let html = `<div style="padding:6px 0 4px;font-size:12px;color:#888;">Guard Drop: <b style="color:${drops.length > 0 ? '#ef4444' : '#4ade80'}">${drops.length}/${analyzed.length}</b> isolated punches dropped</div>`;
+  html += '<div style="display:flex;gap:6px;flex-wrap:wrap;padding-bottom:6px;">';
+
+  for (let i = 0; i < perPunch.length; i++) {
+    const pp = perPunch[i];
+    if (pp.skipped) continue;
+    const color = pp.is_drop ? '#ef4444' : '#4ade80';
+    const badge = pp.is_drop ? 'DROP' : 'OK';
+    const delta = pp.shoulder_delta != null ? ` Δ${pp.shoulder_delta.toFixed(3)}` : '';
+    html += `<div onclick="playGuardClip(${pp.start_time},${pp.end_time})" style="cursor:pointer;padding:4px 10px;border-radius:4px;border-left:3px solid ${color};background:#16213e;font-size:11px;white-space:nowrap;">
+      <b style="color:${color}">${badge}</b> ${pp.punch_type} (${pp.hand})${delta} <span style="color:#666">${pp.start_time.toFixed(1)}s</span>
+    </div>`;
+  }
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+let _clipTimeout = null;
+function playGuardClip(startTime, endTime) {
+  const padded_start = Math.max(0, startTime - 1);
+  const padded_end = endTime + 1;
+  const startFrame = Math.round(padded_start * D.fps);
+  seekToFrame(startFrame);
+  player.currentTime = padded_start;
+  player.play();
+  document.getElementById('btn-play').textContent = 'Pause';
+
+  // Stop at end + 1s
+  if (_clipTimeout) clearTimeout(_clipTimeout);
+  const duration = (padded_end - padded_start) * 1000;
+  _clipTimeout = setTimeout(() => {
+    player.pause();
+    document.getElementById('btn-play').textContent = 'Play';
+    _clipTimeout = null;
+  }, duration);
 }
 
 // === Strips ===
@@ -790,7 +837,7 @@ function updateInspector(fi) {
 function setupToggles() {
   const map = {
     'tog-skeleton': null, // handled in updateDisplay
-    'tog-guard-drop': null, // handled in updateDisplay (drawn on skeleton canvas)
+    'tog-guard-drop': 'guard-drop-wrap', // also drawn on skeleton canvas
     'tog-punch-chart': 'punch-chart-wrap',
     'tog-punch-strip': 'punch-strip-wrap',
     'tog-ratio': 'ratio-chart-wrap',
