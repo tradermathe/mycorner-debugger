@@ -257,6 +257,56 @@ function drawSkeleton(fi) {
     ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
   }
+
+  // Draw stance width measurement lines (ankle width + torso height normalization)
+  const swRule = D.rules?.stance_width;
+  if (swRule) {
+    const swDet = swRule.details || {};
+    const swRatio = (swDet.per_frame_sep_ratio || [])[fi];
+
+    const hasAnkles = !(flat[22] === 0 && flat[23] === 0) && !(flat[24] === 0 && flat[25] === 0);
+    const hasShoulder = !(flat[2] === 0 && flat[3] === 0) && !(flat[4] === 0 && flat[5] === 0);
+    const hasHips = !(flat[14] === 0 && flat[15] === 0) && !(flat[16] === 0 && flat[17] === 0);
+
+    ctx.globalAlpha = 0.9;
+
+    // Torso height: shoulder midpoint -> hip midpoint (normalization line)
+    if (hasShoulder && hasHips) {
+      const smx = (flat[2] * vr.scaleX + vr.offsetX + flat[4] * vr.scaleX + vr.offsetX) / 2;
+      const smy = (flat[3] * vr.scaleY + vr.offsetY + flat[5] * vr.scaleY + vr.offsetY) / 2;
+      const hmx = (flat[14] * vr.scaleX + vr.offsetX + flat[16] * vr.scaleX + vr.offsetX) / 2;
+      const hmy = (flat[15] * vr.scaleY + vr.offsetY + flat[17] * vr.scaleY + vr.offsetY) / 2;
+      ctx.strokeStyle = '#FFD54F'; ctx.lineWidth = 2.5; ctx.setLineDash([6, 4]);
+      ctx.beginPath(); ctx.moveTo(smx, smy); ctx.lineTo(hmx, hmy); ctx.stroke();
+      ctx.setLineDash([]);
+      const tx = (smx + hmx) / 2 + 8, ty = (smy + hmy) / 2;
+      ctx.font = 'bold 11px sans-serif';
+      ctx.fillStyle = '#000'; ctx.fillText('Torso H', tx + 1, ty + 1);
+      ctx.fillStyle = '#FFD54F'; ctx.fillText('Torso H', tx, ty);
+    }
+
+    // Ankle-to-ankle width line
+    if (hasAnkles) {
+      const lax = flat[22] * vr.scaleX + vr.offsetX, lay = flat[23] * vr.scaleY + vr.offsetY;
+      const rax = flat[24] * vr.scaleX + vr.offsetX, ray = flat[25] * vr.scaleY + vr.offsetY;
+      const threshEl = document.getElementById('stance-thresh');
+      const thresh = threshEl ? parseFloat(threshEl.value) : 0.5;
+      const isNarrow = swRatio != null && !isNaN(swRatio) && swRatio < thresh;
+      const lineColor = isNarrow ? '#ef4444' : '#4FC3F7';
+
+      ctx.strokeStyle = lineColor; ctx.lineWidth = 2.5; ctx.setLineDash([6, 4]);
+      ctx.beginPath(); ctx.moveTo(lax, lay); ctx.lineTo(rax, ray); ctx.stroke();
+      ctx.setLineDash([]);
+
+      const mx = (lax + rax) / 2, my = (lay + ray) / 2 - 10;
+      const label = swRatio != null && !isNaN(swRatio) ? 'Sep: ' + swRatio.toFixed(2) : 'Sep: N/A';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.fillStyle = '#000'; ctx.fillText(label, mx - 20 + 1, my + 1);
+      ctx.fillStyle = lineColor; ctx.fillText(label, mx - 20, my);
+    }
+
+    ctx.globalAlpha = 1;
+  }
 }
 
 function initOverlays() {
